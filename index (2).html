@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PERI Jump & Run</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #87ceeb; }
+    canvas { display: block; }
+    #gameOver {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      color: red;
+      display: none;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="gameOver">Game Over</div>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const gravity = 0.5;
+    let gameRunning = true;
+
+    const player = {
+      x: 100,
+      y: canvas.height - 150,
+      width: 50,
+      height: 60,
+      velY: 0,
+      jumping: false,
+    };
+
+    const platforms = [];
+    const obstacles = [];
+    let scrollOffset = 0;
+
+    function drawPlayer() {
+      ctx.fillStyle = "black";
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+
+      ctx.fillStyle = "white";
+      ctx.font = "20px Arial";
+      ctx.fillText("PERI", player.x + 5, player.y + 25);
+
+      ctx.beginPath();
+      ctx.arc(player.x + 10, player.y + player.height, 5, 0, Math.PI * 2);
+      ctx.arc(player.x + player.width - 10, player.y + player.height, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function createPlatform(x, y, width = 100, height = 20) {
+      return { x, y, width, height };
+    }
+
+    function createObstacle(x, y, size = 30) {
+      return { x, y, width: size, height: size };
+    }
+
+    function generateWorld(offset) {
+      for (let i = 0; i < 3; i++) {
+        let x = offset + Math.random() * 600 + 300;
+        let y = canvas.height - Math.random() * 300 - 100;
+        platforms.push(createPlatform(x, y));
+      }
+
+      if (Math.random() > 0.5) {
+        let x = offset + Math.random() * 800 + 300;
+        let y = canvas.height - 40;
+        obstacles.push(createObstacle(x, y));
+      }
+    }
+
+    function drawPlatforms() {
+      ctx.fillStyle = "#654321";
+      platforms.forEach(p => {
+        ctx.fillRect(p.x - scrollOffset, p.y, p.width, p.height);
+      });
+    }
+
+    function drawObstacles() {
+      ctx.fillStyle = "red";
+      obstacles.forEach(o => {
+        ctx.fillRect(o.x - scrollOffset, o.y, o.width, o.height);
+      });
+    }
+
+    function checkCollision(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
+
+    function gameOver() {
+      document.getElementById("gameOver").style.display = "block";
+      gameRunning = false;
+    }
+
+    function update() {
+      if (!gameRunning) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      scrollOffset += 2;
+
+      if (scrollOffset % 800 === 0) {
+        generateWorld(scrollOffset + canvas.width);
+      }
+
+      if (player.y + player.height < canvas.height) {
+        player.velY += gravity;
+      } else {
+        player.velY = 0;
+        player.jumping = false;
+        player.y = canvas.height - player.height;
+      }
+
+      platforms.forEach(p => {
+        if (
+          player.x + player.width > p.x - scrollOffset &&
+          player.x < p.x - scrollOffset + p.width &&
+          player.y + player.height > p.y &&
+          player.y + player.height < p.y + p.height &&
+          player.velY >= 0
+        ) {
+          player.jumping = false;
+          player.velY = 0;
+          player.y = p.y - player.height;
+        }
+      });
+
+      obstacles.forEach(o => {
+        const shifted = { ...o, x: o.x - scrollOffset };
+        if (checkCollision(player, shifted)) {
+          gameOver();
+        }
+      });
+
+      player.y += player.velY;
+
+      drawPlayer();
+      drawPlatforms();
+      drawObstacles();
+
+      requestAnimationFrame(update);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && !player.jumping && gameRunning) {
+        player.velY = -12;
+        player.jumping = true;
+      }
+    });
+
+    generateWorld(0);
+    update();
+  </script>
+</body>
+</html>
